@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: doc-chat
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/doc_chat
+    username: postgres
+    password: postgres
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+      embedding:
+        options:
+          model: text-embedding-3-small
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        dimensions: 1536
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
