@@ -26,4 +26,10 @@ public class DocumentController {
     public List<String> list() {
         return ingestionService.getUploadedFiles();
     }
+
+    @DeleteMapping("/{filename}")
+    public ResponseEntity<Void> delete(@PathVariable String filename) {
+        ingestionService.delete(filename);
+        return ResponseEntity.noContent().build();
+    }
 }

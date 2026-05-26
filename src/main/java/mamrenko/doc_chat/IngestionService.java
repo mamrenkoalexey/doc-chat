@@ -9,12 +9,12 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,25 +27,24 @@ public class IngestionService {
 
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
+    private final JdbcTemplate jdbc;
     private final TokenTextSplitter splitter = new TokenTextSplitter();
-    private final List<String> uploadedFiles = new ArrayList<>();
 
-    public IngestionService(VectorStore vectorStore, ChatClient.Builder builder) {
+    public IngestionService(VectorStore vectorStore, ChatClient.Builder builder, JdbcTemplate jdbc) {
         this.vectorStore = vectorStore;
         this.chatClient = builder.build();
+        this.jdbc = jdbc;
     }
 
     public void ingest(MultipartFile file) throws Exception {
         String filename = file.getOriginalFilename();
-        String text = extractText(file);
 
+        jdbc.update("DELETE FROM vector_store WHERE metadata->>'filename' = ?", filename);
+
+        String text = extractText(file);
         Document document = new Document(text, Map.of("filename", filename));
         List<Document> chunks = splitter.apply(List.of(document));
         vectorStore.add(chunks);
-
-        if (!uploadedFiles.contains(filename)) {
-            uploadedFiles.add(filename);
-        }
     }
 
     private String extractText(MultipartFile file) throws Exception {
@@ -80,7 +79,13 @@ public class IngestionService {
         return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
     }
 
+    public void delete(String filename) {
+        jdbc.update("DELETE FROM vector_store WHERE metadata->>'filename' = ?", filename);
+    }
+
     public List<String> getUploadedFiles() {
-        return uploadedFiles;
+        return jdbc.queryForList(
+                "SELECT DISTINCT metadata->>'filename' FROM vector_store WHERE metadata->>'filename' IS NOT NULL",
+                String.class);
     }
 }
